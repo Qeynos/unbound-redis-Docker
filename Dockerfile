@@ -1,7 +1,7 @@
 FROM alpine:latest
 
 RUN apk update && \
-    apk add gcc g++ make openssl-dev expat-dev hiredis-dev && \
+    apk add gcc g++ make openssl-dev expat-dev hiredis-dev --no-cache && \
     adduser -D unbound && \
     cd opt/ && \
     wget https://nlnetlabs.nl/downloads/unbound/unbound-1.14.0.tar.gz && \
@@ -43,6 +43,5 @@ RUN apk update && \
     /usr/sbin/unbound-anchor \
     /usr/sbin/unbound-host && \
     apk del gcc g++ make
-
 
 ENTRYPOINT [ "unbound" ]
