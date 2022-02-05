@@ -1,4 +1,4 @@
-FROM debian:bullseye as openssl
+FROM debian:bullseye as unbound
 LABEL maintainer="Matthew Vance"
 
 ENV VERSION_OPENSSL=openssl-3.0.1 \
@@ -9,7 +9,7 @@ ENV VERSION_OPENSSL=openssl-3.0.1 \
 WORKDIR /tmp/src
 
 RUN set -e -x && \
-    build_deps="build-essential ca-certificates curl dirmngr gnupg libidn2-0-dev libssl-dev" && \
+    build_deps="build-essential ca-certificates curl dirmngr gnupg libidn2-0-dev" && \
     DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps && \
     curl -L $SOURCE_OPENSSL$VERSION_OPENSSL.tar.gz -o openssl.tar.gz && \
@@ -31,55 +31,46 @@ RUN set -e -x && \
       -DOPENSSL_NO_HEARTBEATS \
       -fstack-protector-strong && \
     make depend && \
-    make && \
-    make install_sw && \
-    apt-get purge -y --auto-remove \
-      $build_deps && \
-    rm -rf \
-        /tmp/* \
-        /var/tmp/* \
-        /var/lib/apt/lists/*
-
-FROM debian:bullseye as unbound
-LABEL maintainer="Matthew Vance"
-
-ENV NAME=unbound \
-    UNBOUND_VERSION=1.14.0 \
-    UNBOUND_SHA256=6ef91cbf02d5299eab39328c0857393de7b4885a2fe7233ddfe3c124ff5a89c8 \
-    UNBOUND_DOWNLOAD_URL=https://nlnetlabs.nl/downloads/unbound/unbound-1.14.0.tar.gz
+    make CFLAGS="-O2" && \
+    make install_sw
 
 WORKDIR /tmp/src
 
-COPY --from=openssl /opt/openssl /opt/openssl
-
-RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make" && \
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/:/lib/:/lib64/:/usr/local/lib/
+ENV PKG_CONFIG_PATH=/opt/openssl1/lib/pkgconfig/
+RUN build_deps="curl gcc libc-dev make libexpat1-dev" && \
     set -x && \
     DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps \
       binutils \
       bsdmainutils \
       ca-certificates \
-      ldnsutils \
-      libhiredis-dev \
-      libevent-2.1-7 \
-      libexpat1 
-#RUN apt install git -y
-#RUN cd /tmp && git clone -b v1.0.2 https://github.com/redis/hiredis.git && \
-#    cd hiredis && \
-#    make install
-#RUN cd /tmp && git clone --depth 1 --branch release-2.1.12-stable https://github.com/libevent/libevent  && \
-#    cd libevent && \
-#    ./configure && \
-#    make install
-RUN curl -sSL $UNBOUND_DOWNLOAD_URL -o unbound.tar.gz && \
-    echo "${UNBOUND_SHA256} *unbound.tar.gz" | sha256sum -c - && \
-    tar xzf unbound.tar.gz && \
-    rm -f unbound.tar.gz && \
-    cd unbound-1.14.0 && \
-    groupadd unbound && \
-    useradd -g unbound -s /etc -d /dev/null unbound && \
+      ldnsutils
+RUN apt install git automake wget libtool-bin autoconf pkg-config apt-utils python python-setuptools byacc -y
+RUN openssl_version='1.1.1m' && wget https://www.openssl.org/source/openssl-"$openssl_version".tar.gz && \
+    tar xvf openssl-"$openssl_version".tar.gz && \
+    cd openssl-"$openssl_version" && \
+    ./config --prefix=/opt/openssl1 --openssldir=/opt/openssl1 no-shared CFLAGS="-O2" && \
+    make -j`nproc` && make install_sw -j`nproc`
+ENV PKG_CONFIG_PATH=/opt/openssl1/lib/pkgconfig
+RUN cd /tmp && git clone  --depth 1 --branch v1.0.2 https://github.com/redis/hiredis.git && \
+    cd hiredis && \
+    make install
+RUN cd /tmp && git clone --depth 1 --branch release-2.1.12-stable https://github.com/libevent/libevent  && \
+    cd libevent && \
+    ./autogen.sh && \
+    ./configure CFLAGS="-O2 $(pkg-config --cflags openssl)" LIBS="$(pkg-config --libs --static openssl)" && \
+    make install
+RUN cd /tmp && git clone --depth 1 --branch v1.46.0 https://github.com/nghttp2/nghttp2.git  && \
+    cd nghttp2 && \
+    autoreconf -i && \
+    automake && \
+    autoconf && \
+    ./configure CFLAGS="-O2" && \
+    make install
+RUN cd /tmp && git clone --depth 1 --branch release-1.14.0 https://github.com/NLnetLabs/unbound.git  && \
+    cd unbound && \
     ./configure \
-#        --enable-fully-static \
         --with-libhiredis \
         --with-conf-file=/etc/unbound/unbound.conf \
         --with-pthreads \
@@ -107,36 +98,25 @@ RUN curl -sSL $UNBOUND_DOWNLOAD_URL -o unbound.tar.gz && \
         --disable-rpath \
         --disable-debug \
         --enable-event-api \ 
-        CFLAGS="-Os" && \
-#        LDFLAGS=-static && \
-    make install && \
-    apt-get purge -y --auto-remove \
-      $build_deps && \
-    rm -rf \
-        /usr/local/share/ \
-        /tmp/* \
-        /var/tmp/* \
-        /var/lib/apt/lists/*
-RUN    strip /usr/local/sbin/unbound && strip /usr/local/sbin/unbound-control 
-RUN    mkdir -p /tmp/root && \
-    cd /tmp/root && \
+        CFLAGS="-O2" && \
+    make install
+
+RUN strip /usr/local/sbin/unbound && strip /usr/local/sbin/unbound-control 
+RUN mkdir -p /tmp/pack && \
+    cd /tmp/pack && \
     for f in $(ldd /usr/local/sbin/unbound | sed -n 's/.*\s\(\/.*\) .*/\1/p'); do \
        cp --parents "$f" . ;\
     done && \
     cp --parents /lib/*/ld-2.31.so . && \
     cp --parents /lib/*/libnss*.so.2 . && \
     cp --parents /lib/*/libresolv*.so.2 . && \
-    cd ..
-RUN    mkdir /tmp/unbound/ && \
-       cp /usr/local/sbin/unbound /tmp/unbound && cp /usr/local/sbin/unbound-control /tmp/unbound
+    cp --parents /usr/local/sbin/unbound . && \
+    cp --parents /usr/local/sbin/unbound-control .
 
 FROM scratch
 
-#FROM debian:bullseye
+COPY --from=unbound /tmp/pack /
 
-COPY --from=unbound /tmp/unbound /
-COPY --from=unbound /tmp/root/ /
-
-ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:/lib/x86_64-linux-gnu/:/lib64/     
-ENV PATH=/
+ENV LD_LIBRARY_PATH=/usr/lib/:/lib/:/lib64/:/usr/local/lib/
+ENV PATH=/usr/local/sbin/
 ENTRYPOINT [ "unbound" ]
