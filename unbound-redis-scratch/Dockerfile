@@ -9,7 +9,7 @@ ENV VERSION_OPENSSL=openssl-3.0.1 \
 WORKDIR /tmp/src
 
 RUN set -e -x && \
-    build_deps="build-essential ca-certificates curl dirmngr gnupg libidn2-0-dev" && \
+    build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev" && \
     DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps && \
     curl -L $SOURCE_OPENSSL$VERSION_OPENSSL.tar.gz -o openssl.tar.gz && \
@@ -30,9 +30,9 @@ RUN set -e -x && \
       enable-ec_nistp_64_gcc_128 \
       -DOPENSSL_NO_HEARTBEATS \
       -fstack-protector-strong && \
-    make depend && \
-    make CFLAGS="-O2" && \
-    make install_sw
+    make depend -j`nproc` && \
+    make -j`nproc` CFLAGS="-O2" && \
+    make install_sw -j`nproc`
 
 WORKDIR /tmp/src
 
@@ -55,19 +55,19 @@ RUN openssl_version='1.1.1m' && wget https://www.openssl.org/source/openssl-"$op
 ENV PKG_CONFIG_PATH=/opt/openssl1/lib/pkgconfig
 RUN cd /tmp && git clone  --depth 1 --branch v1.0.2 https://github.com/redis/hiredis.git && \
     cd hiredis && \
-    make install
+    make install -j`nproc`
 RUN cd /tmp && git clone --depth 1 --branch release-2.1.12-stable https://github.com/libevent/libevent  && \
     cd libevent && \
     ./autogen.sh && \
     ./configure CFLAGS="-O2 $(pkg-config --cflags openssl)" LIBS="$(pkg-config --libs --static openssl)" && \
-    make install
+    make install -j`nproc`
 RUN cd /tmp && git clone --depth 1 --branch v1.46.0 https://github.com/nghttp2/nghttp2.git  && \
     cd nghttp2 && \
     autoreconf -i && \
     automake && \
     autoconf && \
     ./configure CFLAGS="-O2" && \
-    make install
+    make install -j`nproc`
 RUN cd /tmp && git clone --depth 1 --branch release-1.14.0 https://github.com/NLnetLabs/unbound.git  && \
     cd unbound && \
     ./configure \
@@ -99,7 +99,7 @@ RUN cd /tmp && git clone --depth 1 --branch release-1.14.0 https://github.com/NL
         --disable-debug \
         --enable-event-api \ 
         CFLAGS="-O2" && \
-    make install
+    make install -j`nproc`
 
 RUN strip /usr/local/sbin/unbound && strip /usr/local/sbin/unbound-control 
 RUN mkdir -p /tmp/pack && \
