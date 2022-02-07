@@ -9,8 +9,8 @@ ENV OPENSSL3_VERSION=openssl-3.0.1 \
     HIREDIS_VERSION=v1.0.2 \
     HIREDIS_SOURCE=https://github.com/redis/hiredis.git \
 
-    LIBEVENT_VERSION=release-2.1.12-stable \
-    LIBEVENT_SOURCE=https://github.com/libevent/libevent \
+#    LIBEVENT_VERSION=release-2.1.12-stable \
+#    LIBEVENT_SOURCE=https://github.com/libevent/libevent \
 
     NGHTTP2_VERSION=v1.46.0 \
     NGHTTP2_SOURCE=https://github.com/nghttp2/nghttp2.git \
@@ -31,7 +31,7 @@ RUN set -e -x && \
       $build_deps && \
 
 # build openssl 3
-    curl -L "$OPENSSL3_SOURCE""$OPENSSL3_VERSION".tar.gz -o $OPENSSL3_VERSION.tar.gz && \
+    curl -L $OPENSSL3_SOURCE$OPENSSL3_VERSION.tar.gz -o $OPENSSL3_VERSION.tar.gz && \
     tar xzf $OPENSSL3_VERSION.tar.gz && \
     cd $OPENSSL3_VERSION && \
     ./config \
@@ -48,11 +48,11 @@ RUN set -e -x && \
     make install_sw -j`nproc` && \
 
 # build openssl 1
-    cd / && curl -L "$OPENSSL1_SOURCE""$OPENSSL1_VERSION".tar.gz -o $OPENSSL1_VERSION.tar.gz && \
-    tar xvf $OPENSSL1_VERSION.tar.gz && \
-    cd $OPENSSL1_VERSION && \
-    ./config --prefix=/opt/openssl1 --openssldir=/opt/openssl1 no-shared CFLAGS="-O2" && \
-    make -j`nproc` && make install_sw -j`nproc` && \
+#    cd / && curl -L $OPENSSL1_SOURCE$OPENSSL1_VERSION.tar.gz -o $OPENSSL1_VERSION.tar.gz && \
+#    tar xvf $OPENSSL1_VERSION.tar.gz && \
+#    cd $OPENSSL1_VERSION && \
+#    ./config --prefix=/opt/openssl1 --openssldir=/opt/openssl1 no-shared CFLAGS="-O2" && \
+#    make -j`nproc` && make install_sw -j`nproc` && \
 
 # build hiredis
     cd / && git clone  --depth 1 --branch $HIREDIS_VERSION $HIREDIS_SOURCE && \
@@ -60,11 +60,11 @@ RUN set -e -x && \
     make CFLAGS="-O2" && make install -j`nproc` && \
 
 # build libevent
-    cd / && git clone --depth 1 --branch $LIBEVENT_VERSION $LIBEVENT_SOURCE && \
-    cd libevent && \
-    ./autogen.sh && \
-    ./configure CFLAGS="-O2 $(pkg-config --cflags openssl)" LIBS="$(pkg-config --libs --static openssl)" && \
-    make install -j`nproc` && \
+#    cd / && git clone --depth 1 --branch $LIBEVENT_VERSION $LIBEVENT_SOURCE && \
+#    cd libevent && \
+#    ./autogen.sh && \
+#    ./configure CFLAGS="-O2 $(pkg-config --cflags openssl)" LIBS="$(pkg-config --libs --static openssl)" && \
+#    make install -j`nproc` && \
 
 # build nghttp2
     cd / && git clone --depth 1 --branch $NGHTTP2_VERSION $NGHTTP2_SOURCE  && \
@@ -82,30 +82,23 @@ RUN set -e -x && \
         --with-libhiredis \
         --with-conf-file=/etc/unbound/unbound.conf \
         --with-pthreads \
-        --with-username="" \
         --with-ssl=/opt/openssl3 \
-        --with-libevent \
+#        --with-libevent \
         --with-libnghttp2 \
-        --disable-flto \
+        --with-username="" \
         --enable-tfo-server \
         --enable-tfo-client \
         --enable-cachedb \
+        --enable-event-api \ 
         --disable-maintainer-mode \
-        --disable-rpath \
         --disable-option-checking \
-        --disable-silent-rules \
         --disable-gtk-doc \
         --disable-gtk-doc-html \
         --disable-doc \
         --disable-docs \
         --disable-documentation \
-        --with-xmlto=no \
-        --enable-ipv6 \
         --disable-nls \
-        --enable-shared \
-        --disable-rpath \
         --disable-debug \
-        --enable-event-api \ 
         CFLAGS="-O2" && \
     make install -j`nproc` && \
 
