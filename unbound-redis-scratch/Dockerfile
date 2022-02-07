@@ -1,9 +1,7 @@
-FROM debian:bullseye as builder
+FROM debian:stable-slim as builder
 
 ENV OPENSSL3_VERSION=openssl-3.0.1 \
-    OPENSSL3_SHA256=c311ad853353bce796edad01a862c50a8a587f62e7e2100ef465ab53ec9b06d1 \
     OPENSSL3_SOURCE=https://www.openssl.org/source/ \
-    OPENSSL3_OPGP=8657ABB260F056B1E5190839D9C4D26D0E604491 \
 
     OPENSSL1_VERSION=openssl-1.1.1m \
     OPENSSL1_SOURCE=https://www.openssl.org/source/ \
@@ -28,18 +26,12 @@ WORKDIR /tmp/src
 
 ## build openssl
 RUN set -e -x && \
-    build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev" && \
+    build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev gcc libc-dev make libexpat1-dev  binutils bsdmainutils ca-certificates ldnsutils git automake libtool-bin autoconf pkg-config python python-setuptools byacc" && \
     DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps && \
 
 # build openssl 3
     curl -L "$OPENSSL3_SOURCE""$OPENSSL3_VERSION".tar.gz -o $OPENSSL3_VERSION.tar.gz && \
-    echo "${OPENSSL3_SHA256} ./$OPENSSL3_VERSION.tar.gz" | sha256sum -c - && \
-    curl -L "$OPENSSL3_SOURCE""$OPENSSL3_VERSION".tar.gz.asc -o $OPENSSL3_VERSION.tar.gz.asc && \
-    GNUPGHOME="$(mktemp -d)" && \
-    export GNUPGHOME && \
-    gpg --no-tty --keyserver keys.openpgp.org --recv-keys "$OPENSSL3_OPGP" && \
-    gpg --batch --verify $OPENSSL3_VERSION.tar.gz.asc $OPENSSL3_VERSION.tar.gz && \
     tar xzf $OPENSSL3_VERSION.tar.gz && \
     cd $OPENSSL3_VERSION && \
     ./config \
@@ -56,24 +48,11 @@ RUN set -e -x && \
     make install_sw -j`nproc` && \
 
 # build openssl 1
-    cd .. && \
-    curl -L "$OPENSSL1_SOURCE""$OPENSSL1_VERSION".tar.gz -o $OPENSSL1_VERSION.tar.gz && \
+    cd / && curl -L "$OPENSSL1_SOURCE""$OPENSSL1_VERSION".tar.gz -o $OPENSSL1_VERSION.tar.gz && \
     tar xvf $OPENSSL1_VERSION.tar.gz && \
     cd $OPENSSL1_VERSION && \
     ./config --prefix=/opt/openssl1 --openssldir=/opt/openssl1 no-shared CFLAGS="-O2" && \
     make -j`nproc` && make install_sw -j`nproc` && \
-
-# clean field
-    apt-get purge -y --auto-remove \
-      $build_deps && \
-    rm -rf \
-        /tmp/* \
-        /var/tmp/* \
-        /var/lib/apt/lists/*
-
-RUN build_deps="curl gcc libc-dev make libexpat1-dev  binutils bsdmainutils ca-certificates ldnsutils git automake libtool-bin autoconf pkg-config apt-utils python python-setuptools byacc" && \
-    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
-      $build_deps && \
 
 # build hiredis
     cd / && git clone  --depth 1 --branch $HIREDIS_VERSION $HIREDIS_SOURCE && \
