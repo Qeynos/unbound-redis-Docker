@@ -1,29 +1,50 @@
-FROM debian:bullseye as unbound
-LABEL maintainer="Matthew Vance"
+FROM debian:bullseye as builder
 
-ENV VERSION_OPENSSL=openssl-3.0.1 \
-    SHA256_OPENSSL=c311ad853353bce796edad01a862c50a8a587f62e7e2100ef465ab53ec9b06d1 \
-    SOURCE_OPENSSL=https://www.openssl.org/source/ \
-    OPGP_OPENSSL=8657ABB260F056B1E5190839D9C4D26D0E604491
+ENV OPENSSL3_VERSION=openssl-3.0.1 \
+    OPENSSL3_SHA256=c311ad853353bce796edad01a862c50a8a587f62e7e2100ef465ab53ec9b06d1 \
+    OPENSSL3_SOURCE=https://www.openssl.org/source/ \
+    OPENSSL3_OPGP=8657ABB260F056B1E5190839D9C4D26D0E604491 \
+
+    OPENSSL1_VERSION=openssl-1.1.1m \
+    OPENSSL1_SOURCE=https://www.openssl.org/source/ \
+
+    HIREDIS_VERSION=v1.0.2 \
+    HIREDIS_SOURCE=https://github.com/redis/hiredis.git \
+
+    LIBEVENT_VERSION=release-2.1.12-stable \
+    LIBEVENT_SOURCE=https://github.com/libevent/libevent \
+
+    NGHTTP2_VERSION=v1.46.0 \
+    NGHTTP2_SOURCE=https://github.com/nghttp2/nghttp2.git \
+
+    UNBOUND_VERSION=release-1.14.0 \
+    UNBOUND_SOURCE=https://github.com/NLnetLabs/unbound.git \
+
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/:/lib/:/lib64/:/usr/local/lib/ \
+
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/openssl1/lib/pkgconfig/
 
 WORKDIR /tmp/src
 
+## build openssl
 RUN set -e -x && \
     build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev" && \
     DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps && \
-    curl -L $SOURCE_OPENSSL$VERSION_OPENSSL.tar.gz -o openssl.tar.gz && \
-    echo "${SHA256_OPENSSL} ./openssl.tar.gz" | sha256sum -c - && \
-    curl -L $SOURCE_OPENSSL$VERSION_OPENSSL.tar.gz.asc -o openssl.tar.gz.asc && \
+
+# build openssl 3
+    curl -L "$OPENSSL3_SOURCE""$OPENSSL3_VERSION".tar.gz -o $OPENSSL3_VERSION.tar.gz && \
+    echo "${OPENSSL3_SHA256} ./$OPENSSL3_VERSION.tar.gz" | sha256sum -c - && \
+    curl -L "$OPENSSL3_SOURCE""$OPENSSL3_VERSION".tar.gz.asc -o $OPENSSL3_VERSION.tar.gz.asc && \
     GNUPGHOME="$(mktemp -d)" && \
     export GNUPGHOME && \
-    gpg --no-tty --keyserver keys.openpgp.org --recv-keys "$OPGP_OPENSSL" && \
-    gpg --batch --verify openssl.tar.gz.asc openssl.tar.gz && \
-    tar xzf openssl.tar.gz && \
-    cd $VERSION_OPENSSL && \
+    gpg --no-tty --keyserver keys.openpgp.org --recv-keys "$OPENSSL3_OPGP" && \
+    gpg --batch --verify $OPENSSL3_VERSION.tar.gz.asc $OPENSSL3_VERSION.tar.gz && \
+    tar xzf $OPENSSL3_VERSION.tar.gz && \
+    cd $OPENSSL3_VERSION && \
     ./config \
-      --prefix=/opt/openssl \
-      --openssldir=/opt/openssl \
+      --prefix=/opt/openssl3 \
+      --openssldir=/opt/openssl3 \
       no-weak-ssl-ciphers \
       no-ssl3 \
       no-shared \
@@ -32,50 +53,58 @@ RUN set -e -x && \
       -fstack-protector-strong && \
     make depend -j`nproc` && \
     make -j`nproc` CFLAGS="-O2" && \
-    make install_sw -j`nproc`
+    make install_sw -j`nproc` && \
 
-WORKDIR /tmp/src
-
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/:/lib/:/lib64/:/usr/local/lib/
-ENV PKG_CONFIG_PATH=/opt/openssl1/lib/pkgconfig/
-RUN build_deps="curl gcc libc-dev make libexpat1-dev" && \
-    set -x && \
-    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
-      $build_deps \
-      binutils \
-      bsdmainutils \
-      ca-certificates \
-      ldnsutils
-RUN apt install git automake wget libtool-bin autoconf pkg-config apt-utils python python-setuptools byacc -y
-RUN openssl_version='1.1.1m' && wget https://www.openssl.org/source/openssl-"$openssl_version".tar.gz && \
-    tar xvf openssl-"$openssl_version".tar.gz && \
-    cd openssl-"$openssl_version" && \
+# build openssl 1
+    cd .. && \
+    curl -L "$OPENSSL1_SOURCE""$OPENSSL1_VERSION".tar.gz -o $OPENSSL1_VERSION.tar.gz && \
+    tar xvf $OPENSSL1_VERSION.tar.gz && \
+    cd $OPENSSL1_VERSION && \
     ./config --prefix=/opt/openssl1 --openssldir=/opt/openssl1 no-shared CFLAGS="-O2" && \
-    make -j`nproc` && make install_sw -j`nproc`
-ENV PKG_CONFIG_PATH=/opt/openssl1/lib/pkgconfig
-RUN cd /tmp && git clone  --depth 1 --branch v1.0.2 https://github.com/redis/hiredis.git && \
+    make -j`nproc` && make install_sw -j`nproc` && \
+
+# clean field
+    apt-get purge -y --auto-remove \
+      $build_deps && \
+    rm -rf \
+        /tmp/* \
+        /var/tmp/* \
+        /var/lib/apt/lists/*
+
+RUN build_deps="curl gcc libc-dev make libexpat1-dev  binutils bsdmainutils ca-certificates ldnsutils git automake libtool-bin autoconf pkg-config apt-utils python python-setuptools byacc" && \
+    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
+      $build_deps && \
+
+# build hiredis
+    cd / && git clone  --depth 1 --branch $HIREDIS_VERSION $HIREDIS_SOURCE && \
     cd hiredis && \
-    make install -j`nproc`
-RUN cd /tmp && git clone --depth 1 --branch release-2.1.12-stable https://github.com/libevent/libevent  && \
+    make CFLAGS="-O2" && make install -j`nproc` && \
+
+# build libevent
+    cd / && git clone --depth 1 --branch $LIBEVENT_VERSION $LIBEVENT_SOURCE && \
     cd libevent && \
     ./autogen.sh && \
     ./configure CFLAGS="-O2 $(pkg-config --cflags openssl)" LIBS="$(pkg-config --libs --static openssl)" && \
-    make install -j`nproc`
-RUN cd /tmp && git clone --depth 1 --branch v1.46.0 https://github.com/nghttp2/nghttp2.git  && \
+    make install -j`nproc` && \
+
+# build nghttp2
+    cd / && git clone --depth 1 --branch $NGHTTP2_VERSION $NGHTTP2_SOURCE  && \
     cd nghttp2 && \
     autoreconf -i && \
     automake && \
     autoconf && \
     ./configure CFLAGS="-O2" && \
-    make install -j`nproc`
-RUN cd /tmp && git clone --depth 1 --branch release-1.14.0 https://github.com/NLnetLabs/unbound.git  && \
+    make install -j`nproc` && \
+
+# build unbound
+    cd / && git clone --depth 1 --branch $UNBOUND_VERSION $UNBOUND_SOURCE  && \
     cd unbound && \
     ./configure \
         --with-libhiredis \
         --with-conf-file=/etc/unbound/unbound.conf \
         --with-pthreads \
         --with-username="" \
-        --with-ssl=/opt/openssl \
+        --with-ssl=/opt/openssl3 \
         --with-libevent \
         --with-libnghttp2 \
         --disable-flto \
@@ -99,11 +128,12 @@ RUN cd /tmp && git clone --depth 1 --branch release-1.14.0 https://github.com/NL
         --disable-debug \
         --enable-event-api \ 
         CFLAGS="-O2" && \
-    make install -j`nproc`
+    make install -j`nproc` && \
 
-RUN strip /usr/local/sbin/unbound && strip /usr/local/sbin/unbound-control 
-RUN mkdir -p /tmp/pack && \
-    cd /tmp/pack && \
+# make pack
+    strip /usr/local/sbin/unbound && strip /usr/local/sbin/unbound-control && \
+    mkdir -p /opt/pack && \
+    cd /opt/pack && \
     for f in $(ldd /usr/local/sbin/unbound | sed -n 's/.*\s\(\/.*\) .*/\1/p'); do \
        cp --parents "$f" . ;\
     done && \
@@ -111,12 +141,22 @@ RUN mkdir -p /tmp/pack && \
     cp --parents /lib/*/libnss*.so.2 . && \
     cp --parents /lib/*/libresolv*.so.2 . && \
     cp --parents /usr/local/sbin/unbound . && \
-    cp --parents /usr/local/sbin/unbound-control .
+    cp --parents /usr/local/sbin/unbound-control . && \
 
+# clean field
+    apt-get purge -y --auto-remove \
+      $build_deps && \
+    rm -rf \
+        /tmp/* \
+        /var/tmp/* \
+        /var/lib/apt/lists/*
+
+## make scratch image
 FROM scratch
 
-COPY --from=unbound /tmp/pack /
+COPY --from=builder /opt/pack /
 
-ENV LD_LIBRARY_PATH=/usr/lib/:/lib/:/lib64/:/usr/local/lib/
-ENV PATH=/usr/local/sbin/
+ENV LD_LIBRARY_PATH=/usr/lib/:/lib/:/lib64/:/usr/local/lib/ \
+    PATH=/usr/local/sbin/
+
 ENTRYPOINT [ "unbound" ]
