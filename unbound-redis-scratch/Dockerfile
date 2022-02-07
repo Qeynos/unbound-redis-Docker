@@ -29,6 +29,7 @@ RUN set -e -x && \
     build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev gcc libc-dev make libexpat1-dev  binutils bsdmainutils ca-certificates ldnsutils git automake libtool-bin autoconf pkg-config python python-setuptools byacc" && \
     DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps && \
+    git config --global advice.detachedHead false
 
 # build openssl 3
     curl -L $OPENSSL3_SOURCE$OPENSSL3_VERSION.tar.gz -o $OPENSSL3_VERSION.tar.gz && \
