@@ -8,12 +8,10 @@ ENV OPENSSL3_VERSION=openssl-3.0.1 \
     NGHTTP2_SOURCE=https://github.com/nghttp2/nghttp2.git \
     UNBOUND_VERSION=release-1.14.0 \
     UNBOUND_SOURCE=https://github.com/NLnetLabs/unbound.git \
-    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/:/lib/:/lib64/:/usr/local/lib/ \
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/openssl1/lib/pkgconfig/
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib/:/lib64/:/usr/local/lib/
 
 WORKDIR /tmp/src
 
-## build openssl
 RUN build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev gcc libc-dev make libexpat1-dev  binutils bsdmainutils ca-certificates ldnsutils git automake libtool-bin autoconf pkg-config python python-setuptools byacc" && \
     DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps && \
@@ -85,16 +83,16 @@ RUN build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg lib
         /var/tmp/* \
         /var/lib/apt/lists/*
 
-## make scratch image
 FROM scratch
 
 COPY --from=builder /opt/pack /
 
-ENV LD_LIBRARY_PATH=/usr/lib/:/lib/:/lib64/:/usr/local/lib/ \
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib/:/lib64/:/usr/local/lib/ \
     PATH=/usr/local/sbin/
 
 ENTRYPOINT [ "unbound" ]
 
+#    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/openssl1/lib/pkgconfig/
 
 #    OPENSSL1_VERSION=openssl-1.1.1m \
 #    OPENSSL1_SOURCE=https://www.openssl.org/source/ \
