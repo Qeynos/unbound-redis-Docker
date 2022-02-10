@@ -47,6 +47,7 @@ RUN build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg lib
         --with-libhiredis \
         --with-conf-file=/etc/unbound/unbound.conf \
         --with-pthreads \
+        --without-solaris-threads \
         --with-ssl=/opt/openssl3 \
         --with-libnghttp2 \
         --with-username="" \
