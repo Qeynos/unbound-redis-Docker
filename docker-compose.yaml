@@ -9,12 +9,12 @@ services:
             - 53:53/udp
         restart: always
         volumes:
-            - ./unbound:/etc/unbound
+            - ./config/unbound:/etc/unbound
 
     redis:
         image: redis
         container_name: redis
         restart: always
         volumes:
-            - ./redis:/data
+            - ./config/redis:/data
         command: redis-server /data/redis.conf
