@@ -1,6 +1,6 @@
 FROM debian:stable-slim as builder
 
-ENV OPENSSL3_VERSION=openssl-3.0.3 \
+ENV OPENSSL3_VERSION=openssl-3.0.4 \
 	OPENSSL3_SOURCE=https://www.openssl.org/source/ \
 	HIREDIS_VERSION=v1.0.2 \
 	HIREDIS_SOURCE=https://github.com/redis/hiredis.git \
