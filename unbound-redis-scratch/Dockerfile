@@ -6,7 +6,7 @@ ENV OPENSSL3_VERSION=openssl-3.0.5 \
 	HIREDIS_SOURCE=https://github.com/redis/hiredis.git \
 	NGHTTP2_VERSION=v1.48.0 \
 	NGHTTP2_SOURCE=https://github.com/nghttp2/nghttp2.git \
-	UNBOUND_VERSION=release-1.16.1 \
+	UNBOUND_VERSION=release-1.16.2 \
 	UNBOUND_SOURCE=https://github.com/NLnetLabs/unbound.git \
 	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib/:/lib64/:/usr/local/lib/
 
