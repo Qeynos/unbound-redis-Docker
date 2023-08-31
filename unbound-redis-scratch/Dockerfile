@@ -62,7 +62,7 @@ RUN build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg lib
 	for f in $(ldd /usr/local/sbin/unbound | sed -n 's/.*\s\(\/.*\) .*/\1/p'); do \
 		cp --parents "$f" . ;\
 	done && \
-	cp --parents /lib/*/ld-*.so . && \
+	cp --parents /lib/*/ld-*.so.2 . && \
 	cp --parents /lib/*/libnss*.so.2 . && \
 	cp --parents /lib/*/libresolv*.so.2 . && \
 	cp --parents /usr/local/sbin/unbound . && \
