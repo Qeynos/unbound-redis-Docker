@@ -1,12 +1,12 @@
 FROM debian:stable-slim as builder
 
-ENV OPENSSL3_VERSION=openssl-3.0.7 \
+ENV OPENSSL3_VERSION=openssl-3.0.10 \
 	OPENSSL3_SOURCE=https://www.openssl.org/source/ \
-	HIREDIS_VERSION=v1.1.0 \
+	HIREDIS_VERSION=v1.2.0 \
 	HIREDIS_SOURCE=https://github.com/redis/hiredis.git \
-	NGHTTP2_VERSION=v1.51.0 \
+	NGHTTP2_VERSION=v1.55.1 \
 	NGHTTP2_SOURCE=https://github.com/nghttp2/nghttp2.git \
-	UNBOUND_VERSION=release-1.17.1 \
+	UNBOUND_VERSION=release-1.18.0 \
 	UNBOUND_SOURCE=https://github.com/NLnetLabs/unbound.git \
 	LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib/:/lib64/:/usr/local/lib/
 
