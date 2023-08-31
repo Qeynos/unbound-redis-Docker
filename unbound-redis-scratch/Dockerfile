@@ -12,7 +12,7 @@ ENV OPENSSL3_VERSION=openssl-3.0.10 \
 
 WORKDIR /tmp/src
 
-RUN build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev gcc libc-dev make libexpat1-dev binutils bsdmainutils ca-certificates ldnsutils git automake libtool-bin autoconf pkg-config python python-setuptools byacc" && \
+RUN build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg libidn2-0-dev gcc libc-dev make libexpat1-dev binutils bsdmainutils ca-certificates ldnsutils git automake libtool-bin autoconf pkg-config byacc flex bison" && \
 	DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
 		$build_deps && \
 	git config --global advice.detachedHead false && \
@@ -53,16 +53,7 @@ RUN build_deps="build-essential ca-certificates curl apt-utils dirmngr gnupg lib
 		--enable-tfo-server \
 		--enable-tfo-client \
 		--enable-cachedb \
-		--enable-event-api \ 
-		--disable-maintainer-mode \
-		--disable-option-checking \
-		--disable-gtk-doc \
-		--disable-gtk-doc-html \
-		--disable-doc \
-		--disable-docs \
-		--disable-documentation \
-		--disable-nls \
-		--disable-debug \
+		--enable-event-api \
 		CFLAGS="-O2" && \
 	make install -j`nproc` && \
 	strip /usr/local/sbin/unbound && strip /usr/local/sbin/unbound-control && \
