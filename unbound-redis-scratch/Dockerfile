@@ -1,4 +1,4 @@
-FROM debian:stable-slim as builder
+FROM debian:bookworm-slim as builder
 
 ENV OPENSSL3_VERSION=openssl-3.0.11 \
 	OPENSSL3_SOURCE=https://www.openssl.org/source/ \
